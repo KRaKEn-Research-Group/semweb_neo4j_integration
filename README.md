@@ -24,3 +24,14 @@ MERGE (n)-[p:AWARD_RECEIVED {uri:row.awardProp}]->(a) ON CREATE SET p.year = row
 MERGE (n)-[:SPOUSE {uri:row.spouseProp}]->(s)
 RETURN *
 ```
+
+### APOC JSONPARAMS
+
+```
+CALL apoc.load.jsonParams(
+    'http://host.docker.internal:8080',
+    {method: 'POST', `Content-Type`: "text/plain"},
+    "SELECT * FROM demo.dbpedia_wikidata.query7"
+);
+```
+

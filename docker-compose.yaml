@@ -1,6 +1,14 @@
 version: '3'
 
 services:
+  middleware:
+    build: .
+    environment:
+      DB_PASSWORD: wshop
+      DB_PORT: 1111
+      DB_USERNAME: dba
+    ports:
+     - "8080:8080"
   neo4j:
     image: neo4j:latest
     ports:

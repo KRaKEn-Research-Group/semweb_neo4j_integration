@@ -10,7 +10,12 @@ public class Database {
   static String port = System.getenv("DB_PORT");
 
   private static Connection getConnection() throws SQLException {
-    return DriverManager.getConnection("jdbc:virtuoso://localhost:" + port + '/', username, password);
+    try {
+      Class.forName("virtuoso.jdbc4.Driver");
+    } catch (ClassNotFoundException e) {
+      e.printStackTrace();
+    }
+    return DriverManager.getConnection("jdbc:virtuoso://host.docker.internal:" + port + '/', username, password);
   }
 
   public static JSONArray getResults(String query) throws SQLException {
