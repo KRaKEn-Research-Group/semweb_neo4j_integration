@@ -32,6 +32,14 @@ CALL apoc.load.jsonParams(
     'http://host.docker.internal:8080',
     {method: 'POST', `Content-Type`: "text/plain"},
     "SELECT * FROM demo.dbpedia_wikidata.query7"
-);
+) YIELD value
+MERGE (n:Person {uri:value.actor}) ON CREATE  SET n.name = value.name, n.sameAs = value.same
+MERGE (u:Partner {uri:value.unmarriedPartner, name:value.unmarriedPartnerName})
+MERGE (s:Spouse {uri:value.spouse, name:value.spouseName})
+MERGE (a:Award {uri:value.award, name:value.awardName})
+MERGE (n)-[:UNMARRIED_PARTNER {uri:value.partnerProp,startDate:COALESCE(value.startDate,'unknown'),endDate:COALESCE(value.endDate,'unknown')}]->(u)
+MERGE (n)-[p:AWARD_RECEIVED {uri:value.awardProp}]->(a) ON CREATE SET p.year = value.year
+MERGE (n)-[:SPOUSE {uri:value.spouseProp}]->(s)
+RETURN *
 ```
 
