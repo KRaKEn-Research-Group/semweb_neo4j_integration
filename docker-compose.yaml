@@ -23,6 +23,7 @@ services:
       - NEO4J_dbms_memory_pagecache_size=1G
       - NEO4J_dbms.memory.heap.initial_size=1G
       - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4J_AUTH=none
     volumes:
       - ./neo4j/conf:/conf
       - ./neo4j/data:/data
@@ -30,11 +31,11 @@ services:
       - ./neo4j/logs:/logs
       - ./neo4j/plugins:/plugins
   virtuoso:
-    image: tenforce/virtuoso:latest
+    image: openlink/virtuoso-opensource-7
     environment:
       SPARQL_UPDATE: "true"
       DBA_PASSWORD: wshop
-      DEFAULT_GRAPH: "http://www.example.com/my-graph"
+      DEFAULT_GRAPH: "http://dbpedia.org"
     volumes:
       - ./data/virtuoso:/data
     ports:
