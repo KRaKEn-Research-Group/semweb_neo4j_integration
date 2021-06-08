@@ -1,49 +1,80 @@
-# semweb_neo4j_integration
-TODO
+# Integrating SemWeb with Neo4j
 
-## Installation
+Internet is filled with enormous amout of data. SemanticWeb project tries to structure and unify them to computer-readable form. However, such form is not the most convenient for a human to browse. That's why we've decided to integrate information-rich Semantic Web structure with an eye-pleasing graph database visualization. 
 
-TODO
-```
-TODO
-```
+## Integration
 
-## Usage
+The idea behind the project was to integrate Virtuoso SPARQL Query Results into a Neo4j database and get a property graph as an outcome.
+Different drivers could have been used to connect Neo4j with Virtuoso. An improper usage of those resulted in a datatype mismatch caused by Virtuoso's extended types for handling RDF (Resource Description Framework)  data.
+JDBCtoODBC Bridge driver was one of the solutions for this problem, yet we chose a different approach.
 
-Sample query presented below:
+The easiest way to handle the issue was to create a simple middleware in Java Spring framework. Neo4j's requests were targetting this lightweight application, which was passing them on to Virtuoso using Type 4 Virtuoso JDBC Driver.
+We managed to improve the simplicity of our solution by configuring all three services in a single Docker Compose file. Containerized entities were able to start and communicate with each other, basing on centralized settings and by using one simple command.
 
-```neo4j
-WITH 'jdbc:virtuoso://localhost:1111/UID=dba/PWD=wshop' AS c, "SELECT * FROM demo.dbpedia_wikidata.query" AS q
-CALL apoc.load.jdbc(c,q) YIELD row
-MERGE (n:Person {uri:row.actor}) ON CREATE  SET n.name = row.name, n.sameAs = row.same
-MERGE (u:Partner {uri:row.unmarriedPartner, name:row.unmarriedPartnerName})
-MERGE (s:Spouse {uri:row.spouse, name:row.spouseName})
-MERGE (a:Award {uri:row.award, name:row.awardName})
-MERGE (n)-[:UNMARRIED_PARTNER {uri:row.partnerProp,startDate:COALESCE(row.startDate,'unknown'),endDate:COALESCE(row.endDate,'unknown')}]->(u)
-MERGE (n)-[p:AWARD_RECEIVED {uri:row.awardProp}]->(a) ON CREATE SET p.year = row.year
-MERGE (n)-[:SPOUSE {uri:row.spouseProp}]->(s)
-RETURN *
-```
+### Solution architecture
 
-### APOC JSONPARAMS
+![image](https://i.ibb.co/tXgQMKm/schema.png)
+
+The diagram above presents the architecture of our solution, showing the flow of the integration and its components.
+Such an approach allows easy configuration and usage of the bundle.
+
+## SPARQL
+
+SPARQL Protocol And RDF Query Language is a query language able to operate on RDF (Resourse Description Framework) triplets. A triplet is a combination of: subject (source node), predicate (edge name) and object (target node). A simple triple in turtle format may look as follows:
 
 ```
-CALL apoc.load.jsonParams(
-    'http://host.docker.internal:8080',
-    {method: 'POST', `Content-Type`: "text/plain"},
-    "SELECT * FROM demo.dbpedia_wikidata.query7"
-) YIELD value
-MERGE (n:Person {uri:value.actor}) ON CREATE  SET n.name = value.name, n.sameAs = value.same
-MERGE (u:Partner {uri:value.unmarriedPartner, name:value.unmarriedPartnerName})
-MERGE (s:Spouse {uri:value.spouse, name:value.spouseName})
-MERGE (a:Award {uri:value.award, name:value.awardName})
-MERGE (n)-[:UNMARRIED_PARTNER {uri:value.partnerProp,startDate:COALESCE(value.startDate,'unknown'),endDate:COALESCE(value.endDate,'unknown')}]->(u)
-MERGE (n)-[p:AWARD_RECEIVED {uri:value.awardProp}]->(a) ON CREATE SET p.year = value.year
-MERGE (n)-[:SPOUSE {uri:value.spouseProp}]->(s)
-RETURN *
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix ex: <http://example.org/stuff/1.0/>.
+ex:student_102 ex:is_taught_by ex:lecturer_02
 ```
 
-## Process
+SPARQL lets us use SQL like syntax to select and access RDF data. Simple SPARQL query may look like this:
+
+```
+PREFIX vcard: #data source <http://www.w3.org/2006/vcard/ns#> 
+SELECT ?person ?givenName
+WHERE 
+{
+ ?person vcard:family-name “Smith”.
+  # family-name == "Smith"
+ ?person vcard:given-name ?givenName.
+  # given-name != null
+}
+```
+
+### DBpedia
+
+DBpedia is a project trying to structurise data available on Wikipedia. It allows to query relationships and properties created in the Wikipedia project.
+The initial release was in 2007 and the latest release from 2017 contains 6 milion Wikipedia entities.
+To represent information DBpedia uses RDF and to access data SPAQRL is used.
+
+## Graphs
+
+### Neo4j
+
+Graph databases are getting more and more attention each year and, thanks to their emphasis on relationships details, they do well with social networks, ontologies or recommendation engines.
+They bring together the best characteristics of SQL and NoSQL databases and provide a great scalability potential. Moreover they prove to be convenient to work with, as it is very easy for the developer to present any life situations as a graph model. At the moment Neo4j is the most popular graph database on the market and it comes with the most vibrant community of all graph databases.
+
+### Structure
+
+The main node of the graph is an Academy Award Oscar node (blue one). It's connected with Actors' nodes (orange) via the AWARD_RECEIVED arc directed towards Oscar's node. Actor node holds such information as: birth date and actor's name. Every actor node is connected with a Country node (pink) via the IS_FROM arc.
+The presented example is rather simple, yet it already shows the idea and its advantages, allowing users to work on SemWeb with ease using graphs.
+Adding more nodes such as movies could improve the interconnectivity even more.
+
+## Middleware
+
+The spring application included in the bundle works as a lightweight middleware between Virtuoso and Neo4j.
+It is simple and consists of only three classes, which pass Neo4j's requests to Virtuoso and format the responses as JSON.
+
+## Difficulties
+
+Following problems were encountered, while working on the project:
+
+ - Not perfectly structured entries in DBpedia
+ - Not a lot of information about such integration on the Internet
+ - Mismatched database drivers
+
+## Running the project
 
 ### 1. Run docker containers
 Get into the directory of the project and run the following command:
@@ -52,7 +83,6 @@ docker-compose up
 ```
 
 ### 2. Add the SQL views
-TODO: Check if some more permissions need to be added before that step.
 
 In order to add some exemplery views, login to `localhost:8890` **Conductor** panel with the data defined in `docker-compose.yaml` (default: `dba/wshop`). Go to **Database > Interactive SQL** and create a view there, e.g.:
 
@@ -64,18 +94,29 @@ AS
 		PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 		PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 		PREFIX dct:	<http://purl.org/dc/terms/>
+		PREFIX dbo:    <http://dbpedia.org/ontology/>
+		PREFIX dbp:  <http://dbpedia.org/property/>
 
-		SELECT *
+		SELECT DISTINCT ?concept, ?actor, ?name, ?birthDate, ?countryRes, ?country, ?films
 		WHERE
 		{
-			SERVICE <http://dbpedia.org/sparql/> {
+			SERVICE <http://dbpedia.org/sparql/>{
 				?concept rdf:type skos:Concept ;
 				rdfs:label  "Best Actor Academy Award winners"@en .
 				?actor dct:subject ?concept.
+				?actor dbp:birthDate ?birthDate.
+				?actor dbp:name ?name.
+				OPTIONAL {?actor dbo:birthPlace ?birthPlaceRes.
+				?birthPlaceRes dbo:country ?countryRes.}
+				FILTER (STR(?countryRes) != "http://dbpedia.org/resource/Hampshire")
+				FILTER (STR(?countryRes) != "http://dbpedia.org/resource/North_Yorkshire")
+				FILTER (STR(?countryRes) !=  "http://dbpedia.org/resource/England_national_football_team")
+				OPTIONAL {?countryRes dbp:commonName ?country.}
+				OPTIONAL {?films dbo:starring ?actor.}
 			}
 		}
 	);
-                           
+
 GRANT SELECT ON demo.actors.test TO dba;
 ```
 
@@ -88,15 +129,17 @@ CALL apoc.load.jsonParams(
     {method: 'POST', `Content-Type`: "text/plain"},
     "SELECT * FROM demo.actors.test"
 ) YIELD value
-MERGE (n:Person {uri:value.actor})
-MERGE (c:Concept {uri:value.concept})
-MERGE (n)-[:AWARD_RECEIVED]->(c)
+MERGE (n:Person {uri:value.actor, name: value.name, birthDate: value.birthDate})
+MERGE (a:Award {uri:value.concept, name: 'Oscar'})
+MERGE (c: Country {uri: value.countryRes, name: value.country})
+MERGE (n)-[:IS_FROM]->(c)
+MERGE (n)-[:AWARD_RECEIVED]->(a)
 RETURN *
 ```
 
 ### 4. Display the data in Neo4j
-Data should be now saved in the Neo4j database. In order to display all data stored in the database, use the following Cypher query:
+Data should be now saved in the Neo4j database. In order to display all data stored in the database in the future, use the following Cypher query:
 
 ```
-MATCH (n) RETURN n
+MATCH (m)-[n]-(o) RETURN m, n, o
 ```
